@@ -58,7 +58,7 @@ export function SettingsPage({ onDataReset }: SettingsPageProps) {
       try {
         await api.resetDemoData();
         onDataReset();
-        alert('Demo memories successfully restored!');
+        alert('Sample memories successfully restored!');
       } catch (err) {
         alert('Reset failed.');
       } finally {
@@ -127,7 +127,7 @@ export function SettingsPage({ onDataReset }: SettingsPageProps) {
               {firebaseUser ? (
                 <span className="text-emerald-700 font-medium">Firebase Auth ({firebaseUser.email || 'Google User'})</span>
               ) : (
-                <span className="text-amber-700 font-medium">Demo / Guest Session</span>
+                <span className="text-stone-700 font-medium">Authenticated Account ({user?.email || 'Active User'})</span>
               )}
             </p>
           </div>
@@ -281,7 +281,7 @@ export function SettingsPage({ onDataReset }: SettingsPageProps) {
         </div>
 
         <p className="text-xs text-stone-600">
-          Need to test the initial state or reload demo data? You can reset to the original sample dataset at any time.
+          Want to populate starter exploration locations or reset the memory graph? You can reload starter sample places at any time.
         </p>
 
         <div className="flex flex-wrap items-center gap-3 pt-2">

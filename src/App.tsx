@@ -59,7 +59,7 @@ function isProtectedPath(path: string): boolean {
 }
 
 function MainApplication() {
-  const { user, loading: authLoading, loginAsDemo, logout } = useAuth();
+  const { user, loading: authLoading, logout } = useAuth();
 
   // URL Path Routing State
   const [currentPath, setCurrentPath] = useState<string>(() => normalizePath(window.location.pathname));
@@ -207,11 +207,6 @@ function MainApplication() {
     navigateTo(mode === 'register' ? '/register' : '/login');
   };
 
-  const handleExploreDemo = async () => {
-    await loginAsDemo();
-    navigateTo('/dashboard', true);
-  };
-
   const handleOpenAddMemory = (coords?: { lat: number; lng: number; locationName?: string }) => {
     setEditingMemory(null);
     setCoordsForNewMemory(coords || null);
@@ -298,7 +293,6 @@ function MainApplication() {
       <>
         <LandingPage
           onOpenAuth={handleOpenAuth}
-          onExploreDemo={handleExploreDemo}
         />
         <AuthModal
           isOpen={isAuthModalOpen}

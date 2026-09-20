@@ -50,10 +50,10 @@ export function getFriendlyAuthErrorMessage(error: any): string {
       return 'Too many attempts. Access has been temporarily paused. Please try again in a minute.';
 
     case 'auth/unauthorized-domain':
-      return 'Google Authentication running in direct mode for this preview environment.';
+      return 'This preview domain is not yet in your Firebase Authorized Domains. Add it in Firebase Console, or sign in directly with your account below.';
 
     case 'auth/operation-not-allowed':
-      return 'Authentication method is being initialized. You can also sign in with email or explore the demo.';
+      return 'Authentication method is being initialized. You can also sign in with email and password or create a new account.';
 
     case 'auth/user-disabled':
       return 'This user account has been deactivated.';

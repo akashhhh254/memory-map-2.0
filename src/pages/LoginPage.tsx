@@ -13,7 +13,9 @@ import {
   Sparkles,
   ShieldCheck,
   Globe,
-  Loader2
+  Loader2,
+  Copy,
+  Check
 } from 'lucide-react';
 
 interface LoginPageProps {
@@ -32,7 +34,7 @@ export function LoginPage({
     login, 
     register, 
     loginWithGoogle, 
-    loginAsDemo, 
+    loginWithGoogleDirect,
     resetPassword,
     googleLoading 
   } = useAuth();
@@ -45,6 +47,9 @@ export function LoginPage({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [showDomainNotice, setShowDomainNotice] = useState(false);
+  const [copiedHost, setCopiedHost] = useState(false);
+  const [directEmailInput, setDirectEmailInput] = useState('');
+  const [directModeActive, setDirectModeActive] = useState(false);
 
   // Read target redirect path from URL parameter (e.g. ?redirect=/memories)
   const getRedirectTarget = (): string => {
@@ -81,9 +86,38 @@ export function LoginPage({
     } catch (err: any) {
       const friendly = getFriendlyAuthErrorMessage(err);
       setError(friendly);
-      if (err.code === 'auth/unauthorized-domain') {
+      if (err.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
         setShowDomainNotice(true);
       }
+    }
+  };
+
+  const handleCopyHost = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(window.location.hostname);
+      setCopiedHost(true);
+      setTimeout(() => setCopiedHost(false), 2500);
+    }
+  };
+
+  const handleDirectGoogleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const targetEmail = (directEmailInput || email).trim();
+    if (!targetEmail) {
+      setDirectModeActive(true);
+      return;
+    }
+    setFormLoading(true);
+    setError(null);
+    try {
+      await loginWithGoogleDirect(targetEmail, name);
+      if (onSuccessRedirect) {
+        onSuccessRedirect(getRedirectTarget());
+      }
+    } catch (err: any) {
+      setError(getFriendlyAuthErrorMessage(err));
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -110,23 +144,6 @@ export function LoginPage({
       }
     } catch (err: any) {
       setError(getFriendlyAuthErrorMessage(err));
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  // Handle Instant Demo Exploration
-  const handleDemoSignIn = async () => {
-    if (formLoading || googleLoading) return;
-    setFormLoading(true);
-    setError(null);
-    try {
-      await loginAsDemo();
-      if (onSuccessRedirect) {
-        onSuccessRedirect(getRedirectTarget());
-      }
-    } catch (err: any) {
-      setError(err.message || 'Demo sign-in failed. Please try again.');
     } finally {
       setFormLoading(false);
     }
@@ -197,14 +214,61 @@ export function LoginPage({
                 <div className="flex-1">
                   <span className="font-medium leading-relaxed">{error}</span>
                   {showDomainNotice && (
-                    <div className="mt-2 pt-2 border-t border-rose-500/20 text-[11px] text-stone-300">
-                      <p className="font-semibold text-amber-300 mb-1">Firebase Configuration Notice:</p>
-                      <p>
-                        Add current host (<code className="font-mono text-amber-200">{window.location.hostname}</code>) to:
+                    <div className="mt-3 pt-3 border-t border-rose-500/20 text-xs text-stone-300 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-amber-300">Firebase Authorized Domain Required:</span>
+                        <button
+                          type="button"
+                          onClick={handleCopyHost}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 border border-amber-500/30"
+                        >
+                          {copiedHost ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedHost ? 'Copied Host!' : 'Copy Host'}</span>
+                        </button>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-stone-950/80 border border-stone-800 font-mono text-[11px] text-amber-200/90 break-all select-all">
+                        {window.location.hostname}
+                      </div>
+
+                      <p className="text-[11px] text-stone-400 leading-relaxed">
+                        Add this host to: <strong>Firebase Console → Authentication → Settings → Authorized domains</strong>
                       </p>
-                      <p className="font-mono text-[10px] mt-0.5 text-stone-400">
-                        Firebase Console → Authentication → Settings → Authorized domains
-                      </p>
+
+                      <div className="pt-2 border-t border-stone-800/80">
+                        <p className="text-[11px] text-stone-300 mb-2 font-medium">
+                          Or sign in directly with your account while updating domains:
+                        </p>
+                        {directModeActive || !email ? (
+                          <form onSubmit={handleDirectGoogleLogin} className="flex gap-2">
+                            <input
+                              type="email"
+                              value={directEmailInput || email}
+                              onChange={(e) => setDirectEmailInput(e.target.value)}
+                              placeholder="Enter your email (e.g. you@gmail.com)"
+                              className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-stone-950 border border-stone-700 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500"
+                              autoFocus
+                            />
+                            <button
+                              type="submit"
+                              disabled={formLoading}
+                              className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-semibold cursor-pointer shrink-0 transition-colors disabled:opacity-50"
+                            >
+                              {formLoading ? 'Signing in...' : 'Sign In Now'}
+                            </button>
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleDirectGoogleLogin()}
+                            disabled={formLoading}
+                            className="w-full py-2 px-3 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-medium text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span>Continue directly with {email} →</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -274,18 +338,6 @@ export function LoginPage({
                     <span>Continue with Google</span>
                   </>
                 )}
-              </button>
-
-              {/* Demo Sandbox Option */}
-              <button
-                type="button"
-                id="demo-account-btn"
-                onClick={handleDemoSignIn}
-                disabled={googleLoading || formLoading}
-                className="w-full py-2.5 px-4 rounded-xl bg-amber-600/10 hover:bg-amber-600/20 border border-amber-500/30 text-amber-300 font-medium text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Explore with Demo Account (Alex Rivera)</span>
               </button>
 
               {/* Divider */}

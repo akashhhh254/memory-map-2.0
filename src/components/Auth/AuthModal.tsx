@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getFriendlyAuthErrorMessage } from '../../utils/authErrors';
-import { MapPin, Sparkles, X, ArrowRight, Lock, Mail, User as UserIcon, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { MapPin, X, ArrowRight, Lock, Mail, User as UserIcon, AlertCircle, CheckCircle, Loader2, Copy, Check } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,7 +20,7 @@ export function AuthModal({
     login, 
     register, 
     loginWithGoogle, 
-    loginAsDemo, 
+    loginWithGoogleDirect,
     resetPassword,
     googleLoading 
   } = useAuth();
@@ -32,6 +32,10 @@ export function AuthModal({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDomainNotice, setShowDomainNotice] = useState(false);
+  const [copiedHost, setCopiedHost] = useState(false);
+  const [directEmailInput, setDirectEmailInput] = useState('');
+  const [directModeActive, setDirectModeActive] = useState(false);
 
   if (!isOpen) return null;
 
@@ -62,28 +66,45 @@ export function AuthModal({
     }
   };
 
-  const handleDemo = async () => {
-    if (loading || googleLoading) return;
-    setLoading(true);
-    setError(null);
-    try {
-      await loginAsDemo();
-      onClose();
-    } catch (err: any) {
-      setError(err.message || 'Demo login failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogle = async () => {
     if (loading || googleLoading) return;
     setError(null);
+    setShowDomainNotice(false);
     try {
       await loginWithGoogle();
       onClose();
     } catch (err: any) {
       setError(getFriendlyAuthErrorMessage(err));
+      if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
+        setShowDomainNotice(true);
+      }
+    }
+  };
+
+  const handleCopyHost = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(window.location.hostname);
+      setCopiedHost(true);
+      setTimeout(() => setCopiedHost(false), 2500);
+    }
+  };
+
+  const handleDirectGoogleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const targetEmail = (directEmailInput || email).trim();
+    if (!targetEmail) {
+      setDirectModeActive(true);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      await loginWithGoogleDirect(targetEmail, name);
+      onClose();
+    } catch (err: any) {
+      setError(getFriendlyAuthErrorMessage(err));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -123,7 +144,7 @@ export function AuthModal({
           </p>
         </div>
 
-        {/* Quick Demo Access banner */}
+        {/* Social / OAuth sign-in options */}
         {mode !== 'forgot' && (
           <>
             {/* Google Auth Button - Real Firebase Flow */}
@@ -163,17 +184,6 @@ export function AuthModal({
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={handleDemo}
-              disabled={loading || googleLoading}
-              className="w-full mb-3.5 py-2.5 px-4 rounded-xl bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/40 text-amber-300 font-medium text-xs flex items-center justify-center gap-2 transition-all cursor-pointer group disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
-              <span>Explore Demo Account (Instant Access)</span>
-              <ArrowRight className="w-3.5 h-3.5 opacity-70 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-stone-800" />
@@ -188,9 +198,71 @@ export function AuthModal({
         )}
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>{error}</span>
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-2 animate-in fade-in">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+              <div className="flex-1">
+                <span>{error}</span>
+                {showDomainNotice && (
+                  <div className="mt-2.5 pt-2.5 border-t border-rose-500/20 text-xs text-stone-300 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-amber-300">Firebase Authorized Domain:</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyHost}
+                        className="px-2 py-0.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[10px] font-medium transition-colors cursor-pointer flex items-center gap-1 shrink-0 border border-amber-500/30"
+                      >
+                        {copiedHost ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedHost ? 'Copied Host!' : 'Copy Host'}</span>
+                      </button>
+                    </div>
+
+                    <div className="p-1.5 rounded-lg bg-stone-950/80 border border-stone-800 font-mono text-[10px] text-amber-200/90 break-all select-all">
+                      {window.location.hostname}
+                    </div>
+
+                    <p className="text-[10px] text-stone-400">
+                      Add to: <strong>Firebase Console → Authentication → Settings → Authorized domains</strong>
+                    </p>
+
+                    <div className="pt-2 border-t border-stone-800">
+                      <p className="text-[10px] text-stone-300 mb-1.5 font-medium">
+                        Or sign in directly with your email now:
+                      </p>
+                      {directModeActive || !email ? (
+                        <form onSubmit={handleDirectGoogleLogin} className="flex gap-1.5">
+                          <input
+                            type="email"
+                            value={directEmailInput || email}
+                            onChange={(e) => setDirectEmailInput(e.target.value)}
+                            placeholder="Enter your email (e.g. you@gmail.com)"
+                            className="flex-1 px-2.5 py-1 text-xs rounded-lg bg-stone-950 border border-stone-700 text-stone-100 placeholder-stone-500 focus:outline-none focus:border-amber-500"
+                            autoFocus
+                          />
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 text-xs font-semibold cursor-pointer shrink-0 transition-colors disabled:opacity-50"
+                          >
+                            Sign In
+                          </button>
+                        </form>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDirectGoogleLogin()}
+                          disabled={loading}
+                          className="w-full py-1.5 px-2.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-medium text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          <span>Continue with {email} →</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

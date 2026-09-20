@@ -18,10 +18,9 @@ import {
 
 interface LandingPageProps {
   onOpenAuth: (mode?: 'login' | 'register') => void;
-  onExploreDemo: () => void;
 }
 
-export function LandingPage({ onOpenAuth, onExploreDemo }: LandingPageProps) {
+export function LandingPage({ onOpenAuth }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col font-sans selection:bg-amber-600 selection:text-white">
       {/* 1. Header Navigation */}
@@ -97,11 +96,11 @@ export function LandingPage({ onOpenAuth, onExploreDemo }: LandingPageProps) {
               </button>
 
               <button
-                onClick={onExploreDemo}
+                onClick={() => onOpenAuth('login')}
                 className="w-full sm:w-auto px-6 py-4 rounded-xl bg-stone-800 hover:bg-stone-700/80 border border-stone-700 text-stone-200 font-medium text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Compass className="w-5 h-5 text-amber-400" />
-                <span>Explore Live Demo Map</span>
+                <span>Sign In to Your Vault</span>
               </button>
             </div>
           </div>
@@ -537,10 +536,10 @@ export function LandingPage({ onOpenAuth, onExploreDemo }: LandingPageProps) {
               Create Your Memory Map Now
             </button>
             <button
-              onClick={onExploreDemo}
+              onClick={() => onOpenAuth('login')}
               className="w-full sm:w-auto px-6 py-4 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-medium text-base transition-colors cursor-pointer"
             >
-              Explore Sample Account
+              Sign In to Your Account
             </button>
           </div>
         </div>
@@ -566,9 +565,6 @@ export function LandingPage({ onOpenAuth, onExploreDemo }: LandingPageProps) {
             </button>
             <button onClick={() => onOpenAuth('register')} className="hover:text-stone-200 cursor-pointer">
               Sign Up
-            </button>
-            <button onClick={onExploreDemo} className="hover:text-stone-200 cursor-pointer">
-              Demo
             </button>
           </div>
 

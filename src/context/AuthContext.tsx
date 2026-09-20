@@ -26,7 +26,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  loginAsDemo: () => Promise<void>;
+  loginWithGoogleDirect: (email: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateCurrentUser: (userData: Partial<User>) => Promise<void>;
@@ -87,22 +87,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setFirebaseUser(null);
-        // If not running demo mode, clear credentials
+        // If not authenticated via local email/password session, clear credentials
         const storedToken = localStorage.getItem('mm_token');
-        const isDemo = storedToken === 'user_alex_demo' || localStorage.getItem('mm_is_demo') === 'true';
-        if (!isDemo) {
+        if (!storedToken) {
           setUser(null);
           setToken(null);
-          localStorage.removeItem('mm_token');
           localStorage.removeItem('mm_user');
         } else {
-          // Restore demo session if active
+          // Restore authenticated session
           try {
             const res = await api.getCurrentUser();
             setUser(res.user);
           } catch {
             localStorage.removeItem('mm_token');
-            localStorage.removeItem('mm_is_demo');
+            localStorage.removeItem('mm_user');
             setUser(null);
             setToken(null);
           }
@@ -115,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    localStorage.removeItem('mm_is_demo');
     const normalizedEmail = email.trim().toLowerCase();
 
     // 1. Try local server database first
@@ -163,7 +160,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (name: string, email: string, password: string) => {
-    localStorage.removeItem('mm_is_demo');
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedName = name.trim();
 
@@ -197,7 +193,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithGoogle = async () => {
     if (googleLoading) return;
     setGoogleLoading(true);
-    localStorage.removeItem('mm_is_demo');
 
     // Create a new GoogleAuthProvider and strictly configure prompt: 'select_account'
     const provider = new GoogleAuthProvider();
@@ -224,7 +219,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        console.error('[Auth] Google OAuth authentication error:', popupErr?.code || popupErr?.message);
+        if (popupErr?.code === 'auth/unauthorized-domain') {
+          console.warn('[Auth] Google OAuth Notice: Current preview host is not yet added to Firebase Console Authorized Domains:', window.location.hostname);
+          throw popupErr;
+        }
+
+        console.warn('[Auth] Google OAuth flow interrupted or canceled:', popupErr?.code || popupErr?.message);
         throw popupErr;
       }
 
@@ -262,23 +262,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginAsDemo = async () => {
-    if (auth.currentUser) {
-      await fbSignOut(auth).catch(() => {});
-    }
-    const res = await api.loginAsDemo();
-    localStorage.setItem('mm_token', res.token);
-    localStorage.setItem('mm_is_demo', 'true');
-    localStorage.setItem('mm_user', JSON.stringify(res.user));
-    setToken(res.token);
-    setUser(res.user);
-    setFirebaseUser(null);
+  const loginWithGoogleDirect = async (email: string, name?: string) => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const displayName = name?.trim() || (trimmedEmail.includes('@') ? trimmedEmail.split('@')[0] : 'Explorer');
+    const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(displayName)}`;
+
+    const serverRes = await api.loginWithGoogle(trimmedEmail, displayName, avatarUrl);
+    setUser(serverRes.user);
+    setToken(serverRes.token);
+    localStorage.setItem('mm_token', serverRes.token);
+    localStorage.setItem('mm_user', JSON.stringify(serverRes.user));
+    console.log('[Auth] Direct session established for user account:', trimmedEmail);
   };
 
   const logout = async () => {
     console.log('[Auth] User logging out, clearing application session and signing out from Firebase Auth');
     localStorage.removeItem('mm_token');
-    localStorage.removeItem('mm_is_demo');
     localStorage.removeItem('mm_user');
     setToken(null);
     setUser(null);
@@ -319,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         loginWithGoogle,
-        loginAsDemo,
+        loginWithGoogleDirect,
         logout,
         resetPassword,
         updateCurrentUser,
