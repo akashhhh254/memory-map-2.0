@@ -196,9 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Create a new GoogleAuthProvider and strictly configure prompt: 'select_account'
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account',
-    });
+    provider.setCustomParameters({ prompt: 'select_account' });
     provider.addScope('profile');
     provider.addScope('email');
 
