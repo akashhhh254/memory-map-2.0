@@ -1,0 +1,10 @@
+{
+  "name": "Memory Map",
+  "description": "Your Life, Your Places, Your Memories. A personal digital memory platform connecting your places, people, photos, and stories into an interactive geographical memory graph.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
